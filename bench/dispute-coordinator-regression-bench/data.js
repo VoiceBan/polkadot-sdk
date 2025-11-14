@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763138538224,
+  "lastUpdate": 1763142265152,
   "repoUrl": "https://github.com/paritytech/polkadot-sdk",
   "entries": {
     "dispute-coordinator-regression-bench": [
@@ -17492,6 +17492,55 @@ window.BENCHMARK_DATA = {
           {
             "name": "dispute-coordinator",
             "value": 0.0026731566499999995,
+            "unit": "seconds"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "git@kchr.de",
+            "name": "Bastian Köcher",
+            "username": "bkchr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a2165432ce392662b142dbfe75b9bfd3914a59a2",
+          "message": "frame-system: Only enable special benchmarking code when running in `no_std` (#10321)\n\nThis fixes `cargo test -p cumulus-pallet-parachain-system --features\nruntime-benchmarks`",
+          "timestamp": "2025-11-14T16:32:17Z",
+          "tree_id": "4a2f6c52d4d107188868f1b069efd0b710968e03",
+          "url": "https://github.com/paritytech/polkadot-sdk/commit/a2165432ce392662b142dbfe75b9bfd3914a59a2"
+        },
+        "date": 1763142240981,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Received from peers",
+            "value": 23.800000000000004,
+            "unit": "KiB"
+          },
+          {
+            "name": "Sent to peers",
+            "value": 227.09999999999997,
+            "unit": "KiB"
+          },
+          {
+            "name": "dispute-coordinator",
+            "value": 0.002589386840000001,
+            "unit": "seconds"
+          },
+          {
+            "name": "test-environment",
+            "value": 0.005208166959999996,
+            "unit": "seconds"
+          },
+          {
+            "name": "dispute-distribution",
+            "value": 0.008646503069999987,
             "unit": "seconds"
           }
         ]
