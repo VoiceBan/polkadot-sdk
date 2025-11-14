@@ -1,62 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763138442470,
+  "lastUpdate": 1763142165399,
   "repoUrl": "https://github.com/paritytech/polkadot-sdk",
   "entries": {
     "availability-distribution-regression-bench": [
-      {
-        "commit": {
-          "author": {
-            "email": "14218860+iulianbarbu@users.noreply.github.com",
-            "name": "Iulian Barbu",
-            "username": "iulianbarbu"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e44b89fb7ca3385f314803c733ad97b26cd14e9f",
-          "message": "txpool: fix tx removal from unlocks set (#8500)\n\n# Description\n\nRemoving a tx subtree means partly removing some txs from the unlocks\nset of other txs. This logic is buggy and the PR attempts to fix it.\n\nCloses #8498 \n\n## Integration\n\nN/A\n\n## Review Notes\n\nThis doesn't seem to be an important bug. Unit tests for txpool still\npass after the fix, so txpool behavior isn't changing much.\n\n### TODOs\n\n- [x] test with a heavy load test (5 millions txs) - all txs were\nvalidated successfully\n- [x] added a unit test\n\n---------\n\nSigned-off-by: Iulian Barbu <iulian.barbu@parity.io>\nCo-authored-by: cmd[bot] <41898282+github-actions[bot]@users.noreply.github.com>",
-          "timestamp": "2025-05-21T17:39:58Z",
-          "tree_id": "f58d28e8d71b185f26380c0de28160f7576545bb",
-          "url": "https://github.com/paritytech/polkadot-sdk/commit/e44b89fb7ca3385f314803c733ad97b26cd14e9f"
-        },
-        "date": 1747853087749,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "Received from peers",
-            "value": 433.3333333333332,
-            "unit": "KiB"
-          },
-          {
-            "name": "Sent to peers",
-            "value": 18481.666666666653,
-            "unit": "KiB"
-          },
-          {
-            "name": "availability-distribution",
-            "value": 0.013034972313333337,
-            "unit": "seconds"
-          },
-          {
-            "name": "test-environment",
-            "value": 0.008691578840000073,
-            "unit": "seconds"
-          },
-          {
-            "name": "availability-store",
-            "value": 0.15854377800666666,
-            "unit": "seconds"
-          },
-          {
-            "name": "bitfield-distribution",
-            "value": 0.022377010166666666,
-            "unit": "seconds"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -26999,6 +26945,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "availability-store",
             "value": 0.1621984303066667,
+            "unit": "seconds"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "git@kchr.de",
+            "name": "Bastian Köcher",
+            "username": "bkchr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a2165432ce392662b142dbfe75b9bfd3914a59a2",
+          "message": "frame-system: Only enable special benchmarking code when running in `no_std` (#10321)\n\nThis fixes `cargo test -p cumulus-pallet-parachain-system --features\nruntime-benchmarks`",
+          "timestamp": "2025-11-14T16:32:17Z",
+          "tree_id": "4a2f6c52d4d107188868f1b069efd0b710968e03",
+          "url": "https://github.com/paritytech/polkadot-sdk/commit/a2165432ce392662b142dbfe75b9bfd3914a59a2"
+        },
+        "date": 1763142140966,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Received from peers",
+            "value": 433.3333333333332,
+            "unit": "KiB"
+          },
+          {
+            "name": "Sent to peers",
+            "value": 18481.666666666653,
+            "unit": "KiB"
+          },
+          {
+            "name": "availability-store",
+            "value": 0.16131112198,
+            "unit": "seconds"
+          },
+          {
+            "name": "availability-distribution",
+            "value": 0.013305843166666666,
+            "unit": "seconds"
+          },
+          {
+            "name": "bitfield-distribution",
+            "value": 0.022915143153333335,
+            "unit": "seconds"
+          },
+          {
+            "name": "test-environment",
+            "value": 0.0073181938733333255,
             "unit": "seconds"
           }
         ]
