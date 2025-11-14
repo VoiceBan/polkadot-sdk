@@ -1,52 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763138506488,
+  "lastUpdate": 1763142232509,
   "repoUrl": "https://github.com/paritytech/polkadot-sdk",
   "entries": {
     "statement-distribution-regression-bench": [
-      {
-        "commit": {
-          "author": {
-            "email": "hrishav@parity.io",
-            "name": "castillax",
-            "username": "castillax"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "2863b7a9a879935ff16987d0e95065d088dad9f8",
-          "message": "Fix generated address returned by Substrate RPC runtime call (#8504)\n\n## Description\n\nWhen dry-running a contract deployment through the runtime API, the\nreturned address does not match the actual address that will be used\nwhen the transaction is submitted. This inconsistency occurs because the\naddress derivation logic doesn't properly account for the difference\nbetween transaction execution and dry-run execution contexts.\n\nThe issue stems from the `create1` address derivation logic in\n`exec.rs`:\n\n```rust\naddress::create1(\n    &deployer,\n    // the Nonce from the origin has been incremented pre-dispatch, so we\n    // need to subtract 1 to get the nonce at the time of the call.\n    if origin_is_caller {\n        account_nonce.saturating_sub(1u32.into()).saturated_into()\n    } else {\n        account_nonce.saturated_into()\n    },\n)\n```\n\nThe code correctly subtracts 1 from the account nonce during a\ntransaction execution (because the nonce is incremented pre-dispatch),\nbut doesn't account for execution context - whether it's a real\ntransaction or a dry run through the RPC.\n\n## Review Notes\n\nThis PR adds a new condition to check for the `IncrementOnce` when\ncalculating the nonce for address derivation:\n\n```rust\naddress::create1(\n    &deployer,\n    // the Nonce from the origin has been incremented pre-dispatch, so we\n    // need to subtract 1 to get the nonce at the time of the call.\n    if origin_is_caller && matches!(exec_context, IncrementOnce::AlreadyIncremented) {\n        account_nonce.saturating_sub(1u32.into()).saturated_into()\n    } else {\n        account_nonce.saturated_into()\n    },\n)\n```\n\n\n## Before Fix\n\n- Dry-run contract deployment returns address derived with nonce N\n- Actual transaction deployment creates contract at address derived with\nnonce N-1\n- Result: Inconsistent addresses between simulation and actual execution\n\n## After Fix\n\n- Dry-run and actual transaction deployments both create contracts at\nthe same address\n- Result: Consistent contract addresses regardless of execution context\n- Added test case to verify nonce handling in different execution\ncontexts\n\nThis fix ensures that users can rely on the address returned by a dry\nrun to match the actual address that will be used when the transaction\nis submitted.\n\nFixes https://github.com/paritytech/contract-issues/issues/37\n\n# Checklist\n\n* [x] My PR includes a detailed description as outlined in the\n\"Description\" and its two subsections above.\n* [x] My PR follows the [labeling requirements](\n\nhttps://github.com/paritytech/polkadot-sdk/blob/master/docs/contributor/CONTRIBUTING.md#Process\n) of this project (at minimum one label for `T` required)\n* External contributors: ask maintainers to put the right label on your\nPR.\n* [x] I have made corresponding changes to the documentation (if\napplicable)\n* [x] I have added tests that prove my fix is effective or that my\nfeature works (if applicable)\n\n---------\n\nCo-authored-by: cmd[bot] <41898282+github-actions[bot]@users.noreply.github.com>\nCo-authored-by: pgherveou <pgherveou@gmail.com>",
-          "timestamp": "2025-05-21T12:10:48Z",
-          "tree_id": "125db6986b5403c0de8a90e570a8254b6130fe95",
-          "url": "https://github.com/paritytech/polkadot-sdk/commit/2863b7a9a879935ff16987d0e95065d088dad9f8"
-        },
-        "date": 1747833592822,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "Received from peers",
-            "value": 106.39999999999996,
-            "unit": "KiB"
-          },
-          {
-            "name": "Sent to peers",
-            "value": 127.94999999999996,
-            "unit": "KiB"
-          },
-          {
-            "name": "test-environment",
-            "value": 0.04472394419799996,
-            "unit": "seconds"
-          },
-          {
-            "name": "statement-distribution",
-            "value": 0.034081780997999994,
-            "unit": "seconds"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -21999,6 +21955,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "statement-distribution",
             "value": 0.03428674107199999,
+            "unit": "seconds"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "git@kchr.de",
+            "name": "Bastian Köcher",
+            "username": "bkchr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a2165432ce392662b142dbfe75b9bfd3914a59a2",
+          "message": "frame-system: Only enable special benchmarking code when running in `no_std` (#10321)\n\nThis fixes `cargo test -p cumulus-pallet-parachain-system --features\nruntime-benchmarks`",
+          "timestamp": "2025-11-14T16:32:17Z",
+          "tree_id": "4a2f6c52d4d107188868f1b069efd0b710968e03",
+          "url": "https://github.com/paritytech/polkadot-sdk/commit/a2165432ce392662b142dbfe75b9bfd3914a59a2"
+        },
+        "date": 1763142208494,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Received from peers",
+            "value": 106.39999999999996,
+            "unit": "KiB"
+          },
+          {
+            "name": "Sent to peers",
+            "value": 127.96799999999999,
+            "unit": "KiB"
+          },
+          {
+            "name": "statement-distribution",
+            "value": 0.034448676591999995,
+            "unit": "seconds"
+          },
+          {
+            "name": "test-environment",
+            "value": 0.04455522712599995,
             "unit": "seconds"
           }
         ]
