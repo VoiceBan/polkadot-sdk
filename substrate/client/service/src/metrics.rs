@@ -253,26 +253,26 @@ impl MetricsService {
 		// Update/send network status information, if any.
 		if let Some(net_status) = net_status {
 			let num_peers = net_status.num_connected_peers;
-			let total_bytes_inbound = net_status.total_bytes_inbound;
-			let total_bytes_outbound = net_status.total_bytes_outbound;
-
-			let diff_bytes_inbound = total_bytes_inbound - self.last_total_bytes_inbound;
-			let diff_bytes_outbound = total_bytes_outbound - self.last_total_bytes_outbound;
-			let (avg_bytes_per_sec_inbound, avg_bytes_per_sec_outbound) = if elapsed > 0 {
-				self.last_total_bytes_inbound = total_bytes_inbound;
-				self.last_total_bytes_outbound = total_bytes_outbound;
-				(diff_bytes_inbound / elapsed, diff_bytes_outbound / elapsed)
-			} else {
-				(diff_bytes_inbound, diff_bytes_outbound)
-			};
+			// let total_bytes_inbound = net_status.total_bytes_inbound;
+			// let total_bytes_outbound = net_status.total_bytes_outbound;
+			//
+			// let diff_bytes_inbound = total_bytes_inbound - self.last_total_bytes_inbound;
+			// let diff_bytes_outbound = total_bytes_outbound - self.last_total_bytes_outbound;
+			// let (avg_bytes_per_sec_inbound, avg_bytes_per_sec_outbound) = if elapsed > 0 {
+			// 	self.last_total_bytes_inbound = total_bytes_inbound;
+			// 	self.last_total_bytes_outbound = total_bytes_outbound;
+			// 	(diff_bytes_inbound / elapsed, diff_bytes_outbound / elapsed)
+			// } else {
+			// 	(diff_bytes_inbound, diff_bytes_outbound)
+			// };
 
 			telemetry!(
 				self.telemetry;
 				SUBSTRATE_INFO;
 				"system.interval";
 				"peers" => num_peers,
-				"bandwidth_download" => avg_bytes_per_sec_inbound,
-				"bandwidth_upload" => avg_bytes_per_sec_outbound,
+				// "bandwidth_download" => avg_bytes_per_sec_inbound,
+				// "bandwidth_upload" => avg_bytes_per_sec_outbound,
 			);
 		}
 

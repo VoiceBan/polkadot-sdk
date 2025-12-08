@@ -756,6 +756,7 @@ impl NetworkBehaviour for RequestResponsesBehaviour {
 						// Received a request from a remote.
 						request_response::Event::Message {
 							peer,
+							connection_id: _,
 							message: Message::Request { request_id, request, channel, .. },
 						} => {
 							self.pending_responses_arrival_time
@@ -957,7 +958,7 @@ impl NetworkBehaviour for RequestResponsesBehaviour {
 						},
 
 						// A response to an inbound request has been sent.
-						request_response::Event::ResponseSent { request_id, peer } => {
+						request_response::Event::ResponseSent { request_id, peer, .. } => {
 							let arrival_time = self
 								.pending_responses_arrival_time
 								.remove(&(protocol.clone(), request_id).into())

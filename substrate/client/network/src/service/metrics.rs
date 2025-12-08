@@ -16,11 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{service::traits::BandwidthSink, ProtocolName};
+use crate::ProtocolName;
 
 use prometheus_endpoint::{
 	self as prometheus, Counter, CounterVec, Gauge, GaugeVec, HistogramOpts, MetricSource, Opts,
-	PrometheusError, Registry, SourcedCounter, SourcedGauge, U64,
+	PrometheusError, Registry, SourcedGauge, U64,
 };
 
 use std::{
@@ -35,7 +35,7 @@ pub use prometheus_endpoint::{Histogram, HistogramVec};
 
 /// Registers all networking metrics with the given registry.
 pub fn register(registry: &Registry, sources: MetricSources) -> Result<Metrics, PrometheusError> {
-	BandwidthCounters::register(registry, sources.bandwidth)?;
+	// BandwidthCounters::register(registry, sources.bandwidth)?;
 	NumConnectedGauge::register(registry, sources.connected_peers)?;
 	Metrics::register(registry)
 }
@@ -47,17 +47,14 @@ pub fn register_without_sources(registry: &Registry) -> Result<Metrics, Promethe
 
 /// Predefined metric sources that are fed directly into prometheus.
 pub struct MetricSources {
-	pub bandwidth: Arc<dyn BandwidthSink>,
 	pub connected_peers: Arc<AtomicUsize>,
 }
 
 impl MetricSources {
 	pub fn register(
 		registry: &Registry,
-		bandwidth: Arc<dyn BandwidthSink>,
 		connected_peers: Arc<AtomicUsize>,
 	) -> Result<(), PrometheusError> {
-		BandwidthCounters::register(registry, bandwidth)?;
 		NumConnectedGauge::register(registry, connected_peers)
 	}
 }
@@ -243,35 +240,35 @@ impl PeerStoreMetrics {
 	}
 }
 
-/// The bandwidth counter metric.
-#[derive(Clone)]
-pub struct BandwidthCounters(Arc<dyn BandwidthSink>);
-
-impl BandwidthCounters {
-	/// Registers the `BandwidthCounters` metric whose values are
-	/// obtained from the given sinks.
-	fn register(registry: &Registry, sinks: Arc<dyn BandwidthSink>) -> Result<(), PrometheusError> {
-		prometheus::register(
-			SourcedCounter::new(
-				&Opts::new("substrate_sub_libp2p_network_bytes_total", "Total bandwidth usage")
-					.variable_label("direction"),
-				BandwidthCounters(sinks),
-			)?,
-			registry,
-		)?;
-
-		Ok(())
-	}
-}
-
-impl MetricSource for BandwidthCounters {
-	type N = u64;
-
-	fn collect(&self, mut set: impl FnMut(&[&str], Self::N)) {
-		set(&["in"], self.0.total_inbound());
-		set(&["out"], self.0.total_outbound());
-	}
-}
+// /// The bandwidth counter metric.
+// #[derive(Clone)]
+// pub struct BandwidthCounters(Arc<dyn BandwidthSink>);
+//
+// impl BandwidthCounters {
+// 	/// Registers the `BandwidthCounters` metric whose values are
+// 	/// obtained from the given sinks.
+// 	fn register(registry: &Registry, sinks: Arc<dyn BandwidthSink>) -> Result<(), PrometheusError> {
+// 		prometheus::register(
+// 			SourcedCounter::new(
+// 				&Opts::new("substrate_sub_libp2p_network_bytes_total", "Total bandwidth usage")
+// 					.variable_label("direction"),
+// 				BandwidthCounters(sinks),
+// 			)?,
+// 			registry,
+// 		)?;
+//
+// 		Ok(())
+// 	}
+// }
+//
+// impl MetricSource for BandwidthCounters {
+// 	type N = u64;
+//
+// 	fn collect(&self, mut set: impl FnMut(&[&str], Self::N)) {
+// 		set(&["in"], self.0.total_inbound());
+// 		set(&["out"], self.0.total_outbound());
+// 	}
+// }
 
 /// The connected peers metric.
 #[derive(Clone)]

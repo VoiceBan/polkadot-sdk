@@ -47,7 +47,7 @@ use std::{
 	sync::Arc,
 	time::{Duration, Instant},
 };
-
+use std::convert::Infallible;
 pub use crate::request_responses::{InboundFailure, OutboundFailure, ResponseFailure};
 
 /// General behaviour of the network. Combines all protocols together.
@@ -447,5 +447,11 @@ impl From<DiscoveryOut> for BehaviourOut {
 impl From<void::Void> for BehaviourOut {
 	fn from(e: void::Void) -> Self {
 		void::unreachable(e)
+	}
+}
+
+impl From<Infallible> for BehaviourOut {
+	fn from(value: Infallible) -> Self {
+		match value {}
 	}
 }

@@ -47,7 +47,7 @@ use crate::{
 	service::{
 		signature::{Signature, SigningError},
 		traits::{
-			BandwidthSink, NetworkBackend, NetworkDHTProvider, NetworkEventStream, NetworkPeers,
+			NetworkBackend, NetworkDHTProvider, NetworkEventStream, NetworkPeers,
 			NetworkRequest, NetworkService as NetworkServiceT, NetworkSigner, NetworkStateInfo,
 			NetworkStatus, NetworkStatusProvider, NotificationSender as NotificationSenderT,
 			NotificationSenderError, NotificationSenderReady as NotificationSenderReadyT,
@@ -113,20 +113,20 @@ pub mod traits;
 /// Logging target for the file.
 const LOG_TARGET: &str = "sub-libp2p";
 
-struct Libp2pBandwidthSink {
-	#[allow(deprecated)]
-	sink: Arc<transport::BandwidthSinks>,
-}
-
-impl BandwidthSink for Libp2pBandwidthSink {
-	fn total_inbound(&self) -> u64 {
-		self.sink.total_inbound()
-	}
-
-	fn total_outbound(&self) -> u64 {
-		self.sink.total_outbound()
-	}
-}
+// struct Libp2pBandwidthSink {
+// 	#[allow(deprecated)]
+// 	sink: Arc<transport::BandwidthSinks>,
+// }
+//
+// impl BandwidthSink for Libp2pBandwidthSink {
+// 	fn total_inbound(&self) -> u64 {
+// 		self.sink.total_inbound()
+// 	}
+//
+// 	fn total_outbound(&self) -> u64 {
+// 		self.sink.total_outbound()
+// 	}
+// }
 
 /// Substrate network service. Handles network IO and manages connectivity.
 pub struct NetworkService<B: BlockT + 'static, H: ExHashT> {
@@ -140,8 +140,6 @@ pub struct NetworkService<B: BlockT + 'static, H: ExHashT> {
 	local_peer_id: PeerId,
 	/// The `KeyPair` that defines the `PeerId` of the local node.
 	local_identity: Keypair,
-	/// Bandwidth logging system. Can be queried to know the average bandwidth consumed.
-	bandwidth: Arc<dyn BandwidthSink>,
 	/// Channel that sends messages to the actual worker.
 	to_worker: TracingUnboundedSender<ServiceToWorkerMsg>,
 	/// Protocol name -> `SetId` mapping for notification protocols. The map never changes after
@@ -338,13 +336,21 @@ where
 		);
 		info!(target: LOG_TARGET, "Running libp2p network backend");
 
-		let (transport, bandwidth) = {
-			let config_mem = match network_config.transport {
-				TransportConfig::MemoryOnly => true,
-				TransportConfig::Normal { .. } => false,
-			};
+		let mut libp2p_registry = libp2p_metrics::Registry::with_prefix(LOG_TARGET);
+		let config_mem = matches!(network_config.transport, TransportConfig::MemoryOnly);
 
-			transport::build_transport(local_identity.clone().into(), config_mem)
+		let transport = if params.metrics_registry.is_some() {
+			transport::build_transport(
+				local_identity.clone().into(),
+				config_mem,
+				Some(&mut libp2p_registry)
+			)
+		} else {
+			transport::build_transport(
+				local_identity.clone().into(),
+				config_mem,
+				None,
+			)
 		};
 
 		let (to_notifications, from_protocol_controllers) =
@@ -467,7 +473,7 @@ where
 		)?;
 
 		// Build the swarm.
-		let (mut swarm, bandwidth): (Swarm<Behaviour<B>>, _) = {
+		let mut swarm: Swarm<Behaviour<B>> = {
 			let user_agent =
 				format!("{} ({})", network_config.client_version, network_config.node_name);
 
@@ -554,18 +560,17 @@ where
 				Swarm::new(transport, behaviour, local_peer_id, config)
 			};
 
-			(swarm, Arc::new(Libp2pBandwidthSink { sink: bandwidth }))
+			swarm
 		};
 
 		// Initialize the metrics.
 		let metrics = match &params.metrics_registry {
 			Some(registry) => Some(metrics::register(
-				registry,
-				MetricSources {
-					bandwidth: bandwidth.clone(),
-					connected_peers: num_connected.clone(),
-				},
-			)?),
+					registry,
+					MetricSources {
+						connected_peers: num_connected.clone(),
+					},
+				)?),
 			None => None,
 		};
 
@@ -584,7 +589,6 @@ where
 		let listen_addresses_set = Arc::new(Mutex::new(HashSet::new()));
 
 		let service = Arc::new(NetworkService {
-			bandwidth,
 			external_addresses,
 			listen_addresses: listen_addresses_set.clone(),
 			num_connected: num_connected.clone(),
@@ -620,20 +624,20 @@ where
 	pub fn status(&self) -> NetworkStatus {
 		NetworkStatus {
 			num_connected_peers: self.num_connected_peers(),
-			total_bytes_inbound: self.total_bytes_inbound(),
-			total_bytes_outbound: self.total_bytes_outbound(),
+			// total_bytes_inbound: self.total_bytes_inbound(),
+			// total_bytes_outbound: self.total_bytes_outbound(),
 		}
 	}
 
-	/// Returns the total number of bytes received so far.
-	pub fn total_bytes_inbound(&self) -> u64 {
-		self.service.bandwidth.total_inbound()
-	}
-
-	/// Returns the total number of bytes sent so far.
-	pub fn total_bytes_outbound(&self) -> u64 {
-		self.service.bandwidth.total_outbound()
-	}
+	// /// Returns the total number of bytes received so far.
+	// pub fn total_bytes_inbound(&self) -> u64 {
+	// 	self.service.bandwidth.total_inbound()
+	// }
+	//
+	// /// Returns the total number of bytes sent so far.
+	// pub fn total_bytes_outbound(&self) -> u64 {
+	// 	self.service.bandwidth.total_outbound()
+	// }
 
 	/// Returns the number of peers we're connected to.
 	pub fn num_connected_peers(&self) -> usize {
@@ -1773,27 +1777,20 @@ where
 					if let Some(addresses) =
 						not_reported.then(|| self.boot_node_ids.get(&peer_id)).flatten()
 					{
-						if let DialError::WrongPeerId { obtained, endpoint } = &error {
-							if let ConnectedPoint::Dialer {
-								address,
-								role_override: _,
-								port_use: _,
-							} = endpoint
-							{
-								let address_without_peer_id = parse_addr(address.clone().into())
-									.map_or_else(|_| address.clone(), |r| r.1.into());
+						if let DialError::WrongPeerId { obtained, address } = &error {
+							let address_without_peer_id = parse_addr(address.clone().into())
+								.map_or_else(|_| address.clone(), |r| r.1.into());
 
-								// Only report for address of boot node that was added at startup of
-								// the node and not for any address that the node learned of the
-								// boot node.
-								if addresses.iter().any(|a| address_without_peer_id == *a) {
-									warn!(
-										"💔 The bootnode you want to connect to at `{address}` provided a \
-										 different peer ID `{obtained}` than the one you expect `{peer_id}`.",
-									);
+							// Only report for address of boot node that was added at startup of
+							// the node and not for any address that the node learned of the
+							// boot node.
+							if addresses.iter().any(|a| address_without_peer_id == *a) {
+								warn!(
+									"💔 The bootnode you want to connect to at `{address}` provided a \
+									 different peer ID `{obtained}` than the one you expect `{peer_id}`.",
+								);
 
-									self.reported_invalid_boot_nodes.insert(peer_id);
-								}
+								self.reported_invalid_boot_nodes.insert(peer_id);
 							}
 						}
 					}
@@ -1833,6 +1830,7 @@ where
 				local_addr,
 				send_back_addr,
 				error,
+				peer_id: _,
 			} => {
 				debug!(
 					target: LOG_TARGET,

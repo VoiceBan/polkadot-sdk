@@ -42,7 +42,7 @@ use crate::{
 	service::{
 		metrics::{register_without_sources, MetricSources, Metrics, NotificationMetrics},
 		out_events,
-		traits::{BandwidthSink, NetworkBackend, NetworkService},
+		traits::{NetworkBackend, NetworkService},
 	},
 	NetworkStatus, NotificationService, ProtocolName,
 };
@@ -99,20 +99,20 @@ mod peerstore;
 mod service;
 mod shim;
 
-/// Litep2p bandwidth sink.
-struct Litep2pBandwidthSink {
-	sink: litep2p::BandwidthSink,
-}
-
-impl BandwidthSink for Litep2pBandwidthSink {
-	fn total_inbound(&self) -> u64 {
-		self.sink.inbound() as u64
-	}
-
-	fn total_outbound(&self) -> u64 {
-		self.sink.outbound() as u64
-	}
-}
+// /// Litep2p bandwidth sink.
+// struct Litep2pBandwidthSink {
+// 	sink: litep2p::BandwidthSink,
+// }
+//
+// impl BandwidthSink for Litep2pBandwidthSink {
+// 	fn total_inbound(&self) -> u64 {
+// 		self.sink.inbound() as u64
+// 	}
+//
+// 	fn total_outbound(&self) -> u64 {
+// 		self.sink.outbound() as u64
+// 	}
+// }
 
 /// Litep2p task executor.
 struct Litep2pExecutor {
@@ -565,11 +565,9 @@ impl<B: BlockT + 'static, H: ExHashT> NetworkBackend<B, H> for Litep2pNetworkBac
 
 		// register rest of the metrics now that `Litep2p` has been created
 		let num_connected = Arc::new(Default::default());
-		let bandwidth: Arc<dyn BandwidthSink> =
-			Arc::new(Litep2pBandwidthSink { sink: litep2p.bandwidth_sink() });
 
 		if let Some(registry) = &params.metrics_registry {
-			MetricSources::register(registry, bandwidth, Arc::clone(&num_connected))?;
+			MetricSources::register(registry, Arc::clone(&num_connected))?;
 		}
 
 		Ok(Self {
@@ -705,8 +703,8 @@ impl<B: BlockT + 'static, H: ExHashT> NetworkBackend<B, H> for Litep2pNetworkBac
 									.peerset_handles
 									.get(&self.block_announce_protocol)
 									.map_or(0usize, |handle| handle.connected_peers.load(Ordering::Relaxed)),
-								total_bytes_inbound: self.litep2p.bandwidth_sink().inbound() as u64,
-								total_bytes_outbound: self.litep2p.bandwidth_sink().outbound() as u64,
+								// total_bytes_inbound: self.litep2p.bandwidth_sink().inbound() as u64,
+								// total_bytes_outbound: self.litep2p.bandwidth_sink().outbound() as u64,
 							});
 						}
 						NetworkServiceCommand::AddPeersToReservedSet {

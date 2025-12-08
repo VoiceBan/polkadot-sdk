@@ -318,10 +318,10 @@ where
 pub struct NetworkStatus {
 	/// Total number of connected peers.
 	pub num_connected_peers: usize,
-	/// The total number of bytes received.
-	pub total_bytes_inbound: u64,
-	/// The total number of bytes sent.
-	pub total_bytes_outbound: u64,
+	// /// The total number of bytes received.
+	// pub total_bytes_inbound: u64,
+	// /// The total number of bytes sent.
+	// pub total_bytes_outbound: u64,
 }
 
 /// Provides high-level status information about network.

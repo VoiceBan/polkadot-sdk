@@ -73,23 +73,23 @@ impl<B: BlockT> InformantDisplay<B> {
 		let best_hash = info.chain.best_hash;
 		let finalized_number = info.chain.finalized_number;
 		let speed = speed::<B>(best_number, self.last_number, self.last_update);
-		let total_bytes_inbound = net_status.total_bytes_inbound;
-		let total_bytes_outbound = net_status.total_bytes_outbound;
+		// let total_bytes_inbound = net_status.total_bytes_inbound;
+		// let total_bytes_outbound = net_status.total_bytes_outbound;
 
 		let now = Instant::now();
 		let elapsed = (now - self.last_update).as_secs();
 		self.last_update = now;
 		self.last_number = Some(best_number);
 
-		let diff_bytes_inbound = total_bytes_inbound - self.last_total_bytes_inbound;
-		let diff_bytes_outbound = total_bytes_outbound - self.last_total_bytes_outbound;
-		let (avg_bytes_per_sec_inbound, avg_bytes_per_sec_outbound) = if elapsed > 0 {
-			self.last_total_bytes_inbound = total_bytes_inbound;
-			self.last_total_bytes_outbound = total_bytes_outbound;
-			(diff_bytes_inbound / elapsed, diff_bytes_outbound / elapsed)
-		} else {
-			(diff_bytes_inbound, diff_bytes_outbound)
-		};
+		// let diff_bytes_inbound = total_bytes_inbound - self.last_total_bytes_inbound;
+		// let diff_bytes_outbound = total_bytes_outbound - self.last_total_bytes_outbound;
+		// let (avg_bytes_per_sec_inbound, avg_bytes_per_sec_outbound) = if elapsed > 0 {
+		// 	self.last_total_bytes_inbound = total_bytes_inbound;
+		// 	self.last_total_bytes_outbound = total_bytes_outbound;
+		// 	(diff_bytes_inbound / elapsed, diff_bytes_outbound / elapsed)
+		// } else {
+		// 	(diff_bytes_inbound, diff_bytes_outbound)
+		// };
 
 		let (level, status, target) =
 			match (sync_status.state, sync_status.state_sync, sync_status.warp_sync) {
@@ -134,7 +134,7 @@ impl<B: BlockT> InformantDisplay<B> {
 
 		info!(
 			target: "substrate",
-			"{} {}{} ({} peers), best: #{} ({}), finalized #{} ({}), ⬇ {} ⬆ {}",
+			"{} {}{} ({} peers), best: #{} ({}), finalized #{} ({})",
 			level,
 			style(&status).white().bold(),
 			target,
@@ -143,8 +143,8 @@ impl<B: BlockT> InformantDisplay<B> {
 			PrintFullHashOnDebugLogging(&best_hash),
 			style(finalized_number).white().bold(),
 			PrintFullHashOnDebugLogging(&info.chain.finalized_hash),
-			style(TransferRateFormat(avg_bytes_per_sec_inbound)).green(),
-			style(TransferRateFormat(avg_bytes_per_sec_outbound)).red(),
+			// style(TransferRateFormat(avg_bytes_per_sec_inbound)).green(),
+			// style(TransferRateFormat(avg_bytes_per_sec_outbound)).red(),
 		)
 	}
 }
@@ -194,26 +194,26 @@ fn speed<B: BlockT>(
 	}
 }
 
-/// Contains a number of bytes per second. Implements `fmt::Display` and shows this number of bytes
-/// per second in a nice way.
-struct TransferRateFormat(u64);
-impl fmt::Display for TransferRateFormat {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		// Special case 0.
-		if self.0 == 0 {
-			return write!(f, "0")
-		}
-
-		// Under 0.1 kiB, display plain bytes.
-		if self.0 < 100 {
-			return write!(f, "{} B/s", self.0)
-		}
-
-		// Under 1.0 MiB/sec, display the value in kiB/sec.
-		if self.0 < 1024 * 1024 {
-			return write!(f, "{:.1}kiB/s", self.0 as f64 / 1024.0)
-		}
-
-		write!(f, "{:.1}MiB/s", self.0 as f64 / (1024.0 * 1024.0))
-	}
-}
+// /// Contains a number of bytes per second. Implements `fmt::Display` and shows this number of bytes
+// /// per second in a nice way.
+// struct TransferRateFormat(u64);
+// impl fmt::Display for TransferRateFormat {
+// 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+// 		// Special case 0.
+// 		if self.0 == 0 {
+// 			return write!(f, "0")
+// 		}
+//
+// 		// Under 0.1 kiB, display plain bytes.
+// 		if self.0 < 100 {
+// 			return write!(f, "{} B/s", self.0)
+// 		}
+//
+// 		// Under 1.0 MiB/sec, display the value in kiB/sec.
+// 		if self.0 < 1024 * 1024 {
+// 			return write!(f, "{:.1}kiB/s", self.0 as f64 / 1024.0)
+// 		}
+//
+// 		write!(f, "{:.1}MiB/s", self.0 as f64 / (1024.0 * 1024.0))
+// 	}
+// }
