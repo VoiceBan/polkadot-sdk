@@ -126,7 +126,7 @@ use xcm_runtime_apis::{
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::traits::PalletInfoAccess;
-
+use frame_system::offchain::{CreateBare, CreateTransactionBase};
 #[cfg(feature = "runtime-benchmarks")]
 use xcm::latest::prelude::{
 	Asset, Assets as XcmAssets, Fungible, Here, InteriorLocation, Junction, Junction::*, Location,
@@ -245,6 +245,8 @@ impl pallet_balances::Config for Runtime {
 	type FreezeIdentifier = RuntimeFreezeReason;
 	type MaxFreezes = frame_support::traits::VariantCountOf<RuntimeFreezeReason>;
 	type DoneSlashHandler = ();
+	type PostContractInterface = ();
+	type InitialFreeFunding = sp_core::ConstU128<0>;
 }
 
 parameter_types! {

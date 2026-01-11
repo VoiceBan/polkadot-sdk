@@ -45,7 +45,7 @@ use bridge_runtime_common::extensions::{
 use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
 use pallet_bridge_messages::LaneIdOf;
 use sp_api::impl_runtime_apis;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, ConstU128, OpaqueMetadata};
 use sp_runtime::{
 	generic, impl_opaque_keys,
 	traits::Block as BlockT,
@@ -108,6 +108,7 @@ use parachains_common::{
 
 #[cfg(feature = "runtime-benchmarks")]
 use alloc::boxed::Box;
+use frame_system::offchain::{CreateBare, CreateTransactionBase};
 
 /// The address format for describing accounts.
 pub type Address = MultiAddress<AccountId, ()>;
@@ -343,6 +344,23 @@ impl pallet_authorship::Config for Runtime {
 	type EventHandler = (CollatorSelection,);
 }
 
+impl<C> CreateTransactionBase<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	type Extrinsic = UncheckedExtrinsic;
+	type RuntimeCall = RuntimeCall;
+}
+
+impl<C> CreateBare<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	fn create_bare(_call: Self::RuntimeCall) -> Self::Extrinsic {
+		todo!()
+	}
+}
+
 parameter_types! {
 	pub const ExistentialDeposit: Balance = EXISTENTIAL_DEPOSIT;
 }
@@ -364,6 +382,8 @@ impl pallet_balances::Config for Runtime {
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<0>;
 	type DoneSlashHandler = ();
+	type PostContractInterface = ();
+	type InitialFreeFunding = ConstU128<10_000>;
 }
 
 parameter_types! {

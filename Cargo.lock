@@ -11767,6 +11767,7 @@ dependencies = [
  "sp-core 28.0.0",
  "sp-io",
  "sp-runtime",
+ "sp-std 14.0.0",
 ]
 
 [[package]]

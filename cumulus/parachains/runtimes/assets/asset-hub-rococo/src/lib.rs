@@ -116,7 +116,7 @@ use xcm_runtime_apis::{
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::traits::PalletInfoAccess;
-
+use frame_system::offchain::{CreateBare, CreateTransactionBase};
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 
 impl_opaque_keys! {
@@ -206,6 +206,23 @@ impl pallet_authorship::Config for Runtime {
 	type EventHandler = (CollatorSelection,);
 }
 
+impl<C> CreateTransactionBase<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	type Extrinsic = UncheckedExtrinsic;
+	type RuntimeCall = RuntimeCall;
+}
+
+impl<C> CreateBare<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	fn create_bare(_call: Self::RuntimeCall) -> Self::Extrinsic {
+		todo!()
+	}
+}
+
 parameter_types! {
 	pub const ExistentialDeposit: Balance = EXISTENTIAL_DEPOSIT;
 }
@@ -227,6 +244,8 @@ impl pallet_balances::Config for Runtime {
 	type FreezeIdentifier = RuntimeFreezeReason;
 	type MaxFreezes = ConstU32<50>;
 	type DoneSlashHandler = ();
+	type PostContractInterface = ();
+	type InitialFreeFunding = ConstU128<0>;
 }
 
 parameter_types! {

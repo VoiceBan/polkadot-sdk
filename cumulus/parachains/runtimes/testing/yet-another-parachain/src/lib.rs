@@ -83,6 +83,7 @@ pub use sp_runtime::{Perbill, Permill};
 use cumulus_primitives_core::AggregateMessageOrigin; //, ClaimQueueOffset, CoreSelector};
 use parachains_common::{AccountId, Signature};
 use staging_xcm::latest::prelude::BodyId;
+use crate::frame_system::offchain::{CreateBare, CreateTransactionBase};
 
 pub type SessionHandlers = ();
 
@@ -285,6 +286,23 @@ impl pallet_collator_selection::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl<C> CreateTransactionBase<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	type Extrinsic = UncheckedExtrinsic;
+	type RuntimeCall = RuntimeCall;
+}
+
+impl<C> CreateBare<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	fn create_bare(_call: Self::RuntimeCall) -> Self::Extrinsic {
+		todo!()
+	}
+}
+
 parameter_types! {
 	pub const ExistentialDeposit: u128 = NANOYAP;
 	pub const TransactionByteFee: u128 = NANOYAP;
@@ -307,6 +325,8 @@ impl pallet_balances::Config for Runtime {
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<0>;
 	type DoneSlashHandler = ();
+	type PostContractInterface = ();
+	type InitialFreeFunding = sp_core::ConstU128<10_000>;
 }
 
 impl pallet_transaction_payment::Config for Runtime {

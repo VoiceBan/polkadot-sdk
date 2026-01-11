@@ -55,6 +55,7 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot,
 };
+use frame_system::offchain::{CreateBare, CreateTransactionBase};
 use pallet_xcm::{EnsureXcm, IsVoiceOfBody};
 use parachains_common::{
 	impls::DealWithFees,
@@ -252,21 +253,40 @@ parameter_types! {
 	pub const ExistentialDeposit: Balance = EXISTENTIAL_DEPOSIT;
 }
 
+impl<C> CreateTransactionBase<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	type Extrinsic = UncheckedExtrinsic;
+	type RuntimeCall = RuntimeCall;
+}
+
+impl<C> CreateBare<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	fn create_bare(_call: Self::RuntimeCall) -> Self::Extrinsic {
+		todo!()
+	}
+}
+
 impl pallet_balances::Config for Runtime {
-	type Balance = Balance;
-	type DustRemoval = ();
 	type RuntimeEvent = RuntimeEvent;
-	type ExistentialDeposit = ExistentialDeposit;
-	type AccountStore = System;
-	type WeightInfo = weights::pallet_balances::WeightInfo<Runtime>;
-	type MaxLocks = ConstU32<50>;
-	type MaxReserves = ConstU32<50>;
-	type ReserveIdentifier = [u8; 8];
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type WeightInfo = weights::pallet_balances::WeightInfo<Runtime>;
+	type Balance = Balance;
+	type DustRemoval = ();
+	type ExistentialDeposit = ExistentialDeposit;
+	type AccountStore = System;
+	type ReserveIdentifier = [u8; 8];
 	type FreezeIdentifier = ();
+	type MaxLocks = ConstU32<50>;
+	type MaxReserves = ConstU32<50>;
 	type MaxFreezes = ConstU32<0>;
 	type DoneSlashHandler = ();
+	type PostContractInterface = ();
+	type InitialFreeFunding = sp_core::ConstU128<0>;
 }
 
 parameter_types! {

@@ -30,7 +30,7 @@ use alloc::vec::Vec;
 use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
 use polkadot_runtime_common::xcm_sender::NoPriceForMessageDelivery;
 use sp_api::impl_runtime_apis;
-use sp_core::OpaqueMetadata;
+use sp_core::{ConstU128, OpaqueMetadata};
 use sp_runtime::{
 	generic, impl_opaque_keys,
 	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, Hash as HashT},
@@ -72,6 +72,7 @@ pub use sp_runtime::{Perbill, Permill};
 
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::traits::{Disabled, TransformOrigin};
+use frame_system::offchain::{CreateBare, CreateTransactionBase};
 use parachains_common::{
 	impls::{AssetsFrom, NonZeroIssuance},
 	message_queue::{NarrowOriginToSibling, ParaIdToSibling},
@@ -241,6 +242,23 @@ impl pallet_timestamp::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl<C> CreateTransactionBase<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	type Extrinsic = UncheckedExtrinsic;
+	type RuntimeCall = RuntimeCall;
+}
+
+impl<C> CreateBare<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	fn create_bare(_call: Self::RuntimeCall) -> Self::Extrinsic {
+		todo!()
+	}
+}
+
 parameter_types! {
 	pub const ExistentialDeposit: u128 = MILLIROC;
 	pub const TransferFee: u128 = MILLIROC;
@@ -265,6 +283,8 @@ impl pallet_balances::Config for Runtime {
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<0>;
 	type DoneSlashHandler = ();
+	type PostContractInterface = ();
+	type InitialFreeFunding = ConstU128<10_000>;
 }
 
 impl pallet_transaction_payment::Config for Runtime {

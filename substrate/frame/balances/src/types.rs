@@ -18,11 +18,22 @@
 //! Types used in the pallet.
 
 use crate::{Config, CreditOf, Event, Pallet};
-use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use core::ops::BitOr;
-use frame_support::traits::{Imbalance, LockIdentifier, OnUnbalanced, WithdrawReasons};
+use codec::{Codec, Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use core::{
+	fmt::{Debug, Display},
+	ops::{BitOr, Sub},
+};
+use frame_support::{
+	traits::{Imbalance, LockIdentifier, OnUnbalanced, WithdrawReasons},
+	Parameter,
+};
+use frame_system::pallet_prelude::BlockNumberFor;
 use scale_info::TypeInfo;
-use sp_runtime::{RuntimeDebug, Saturating};
+use sp_runtime::{
+	traits::{AtLeast32BitUnsigned, MaybeSerializeDeserialize, Member},
+	transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction},
+	FixedPointOperand, RuntimeAppPublic, RuntimeDebug, Saturating,
+};
 
 /// Simplified reasons for withdrawing balance.
 #[derive(
@@ -62,7 +73,7 @@ impl BitOr for Reasons {
 	type Output = Reasons;
 	fn bitor(self, other: Reasons) -> Reasons {
 		if self == other {
-			return self
+			return self;
 		}
 		Reasons::All
 	}
@@ -213,4 +224,114 @@ pub enum AdjustmentDirection {
 	Increase,
 	/// Decrease the amount.
 	Decrease,
+}
+
+/// Wrapper around index of the validator node
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	Copy,
+	PartialEq,
+	Eq,
+	RuntimeDebug,
+	MaxEncodedLen,
+	TypeInfo,
+)]
+pub struct ValidatorIndex<BlockNumber>
+where
+	BlockNumber:
+		PartialEq + Eq + Decode + Encode + DecodeWithMemTracking + Copy + MaxEncodedLen + TypeInfo,
+{
+	/// An index of the authority on the list of validators.
+	pub index: u32,
+	/// Block number at which the call is made.
+	pub block_number: BlockNumber,
+}
+
+/// Interface to link contracts to balance pallet
+pub trait PostContractInterface<AccountId>: LocalAuthority {
+	/// The type of the post count: currently u32
+	type PostCount: Parameter
+		+ Member
+		+ AtLeast32BitUnsigned
+		+ Codec
+		+ Default
+		+ Copy
+		+ Sub
+		+ MaybeSerializeDeserialize
+		+ Debug
+		+ Display
+		+ MaxEncodedLen
+		+ TypeInfo
+		+ FixedPointOperand;
+
+	/// The maximum number of posts in a block to trigger default balance reset to 0
+	const FUNDING_THRESHOLD: Self::PostCount;
+	/// The selector obtained from the metadata.json file.
+	/// This doesn't change since the method is always `get_post_count`
+	const POST_COUNT_SELECTOR: [u8; 4] = [0xb7, 0xcc, 0x04, 0xc5];
+
+	fn get_post_count(_contract_address: AccountId) -> Self::PostCount {
+		Default::default()
+	}
+}
+
+pub trait LocalAuthority {
+	type AuthorityId: Codec + RuntimeAppPublic + Display;
+	/// Local validator key used to call the offchain method
+	fn local_authority_key() -> Option<(u32, Self::AuthorityId)> {
+		Default::default()
+	}
+
+	/// List of all validator keys
+	fn keys() -> sp_std::vec::Vec<Self::AuthorityId> {
+		Default::default()
+	}
+
+	fn unsigned_priority() -> u64 {
+		Default::default()
+	}
+}
+
+pub fn validate_transaction<T: frame_system::Config, LA: LocalAuthority>(
+	validator_index: &ValidatorIndex<BlockNumberFor<T>>,
+	signature: &<<LA as LocalAuthority>::AuthorityId as RuntimeAppPublic>::Signature,
+	tag_prefix: &'static str,
+) -> TransactionValidity {
+	let keys = LA::keys();
+	let index: usize =
+		validator_index.index.try_into().map_err(|_| InvalidTransaction::BadSigner)?;
+
+	keys.get(index)
+		.map(|authority_id| {
+			// check signature
+			let signature_valid = validator_index.using_encoded(|encoded_authority| {
+				authority_id.verify(&encoded_authority, signature)
+			});
+			if signature_valid {
+				ValidTransaction::with_tag_prefix(tag_prefix)
+					.priority(LA::unsigned_priority())
+					.longevity(1)
+					.propagate(true)
+					.build()
+			} else {
+				InvalidTransaction::BadProof.into()
+			}
+		})
+		.unwrap_or(InvalidTransaction::BadSigner.into())
+}
+
+mod test_authority_id {
+	use sp_runtime::app_crypto::{app_crypto, key_types, sr25519};
+	app_crypto!(sr25519, key_types::DUMMY);
+}
+impl<T> PostContractInterface<T> for () {
+	type PostCount = u32;
+	const FUNDING_THRESHOLD: Self::PostCount = 0;
+}
+
+impl LocalAuthority for () {
+	type AuthorityId = test_authority_id::Public;
 }
