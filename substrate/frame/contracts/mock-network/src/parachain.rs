@@ -34,7 +34,7 @@ use frame_support::{
 };
 use frame_system::{EnsureRoot, EnsureSigned};
 use pallet_xcm::XcmPassthrough;
-use sp_core::{ConstU32, ConstU64, H256};
+use sp_core::{ConstU128, ConstU32, ConstU64, H256};
 use sp_runtime::traits::{Get, IdentityLookup, MaybeEquivalence};
 
 use xcm::latest::prelude::*;
@@ -97,6 +97,8 @@ impl pallet_balances::Config for Runtime {
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type WeightInfo = ();
 	type DoneSlashHandler = ();
+	type PostContractInterface = ();
+	type InitialFreeFunding = ConstU128<0>;
 }
 
 parameter_types! {

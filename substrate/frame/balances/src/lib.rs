@@ -188,7 +188,7 @@ use sp_runtime::{
 };
 
 pub use types::{
-	AccountData, AdjustmentDirection, BalanceLock, DustCleaner, ExtraFlags, Reasons, ReserveData,
+	validate_transaction, AccountData, AdjustmentDirection, BalanceLock, DustCleaner, ExtraFlags, Reasons, ReserveData,
 	ValidatorIndex, PostContractInterface, LocalAuthority,
 };
 pub use weights::WeightInfo;

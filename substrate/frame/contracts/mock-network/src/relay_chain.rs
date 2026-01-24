@@ -23,7 +23,7 @@ use frame_support::{
 };
 
 use frame_system::EnsureRoot;
-use sp_core::{ConstU32, H256};
+use sp_core::{ConstU128, ConstU32, H256};
 use sp_runtime::traits::IdentityLookup;
 
 use polkadot_parachain_primitives::primitives::Id as ParaId;
@@ -90,6 +90,8 @@ impl pallet_balances::Config for Runtime {
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type DoneSlashHandler = ();
+	type PostContractInterface = ();
+	type InitialFreeFunding = ConstU128<0>;
 }
 
 impl shared::Config for Runtime {
