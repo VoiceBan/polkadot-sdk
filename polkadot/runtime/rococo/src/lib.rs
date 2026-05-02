@@ -419,6 +419,9 @@ impl pallet_balances::Config for Runtime {
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type MaxFreezes = ConstU32<1>;
 	type DoneSlashHandler = ();
+	type InitialFreeFunding = ConstU128<0>;
+	type PostStatsProvider = ();
+	type LocalAuthority = ();
 }
 
 parameter_types! {
@@ -1314,6 +1317,9 @@ impl pallet_balances::Config<NisCounterpartInstance> for Runtime {
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<1>;
 	type DoneSlashHandler = ();
+	type InitialFreeFunding = ConstU128<0>;
+	type PostStatsProvider = ();
+	type LocalAuthority = ();
 }
 
 parameter_types! {

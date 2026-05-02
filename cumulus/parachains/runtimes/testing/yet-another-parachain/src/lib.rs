@@ -291,6 +291,23 @@ impl pallet_collator_selection::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl<C> frame_system::offchain::CreateTransactionBase<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	type Extrinsic = UncheckedExtrinsic;
+	type RuntimeCall = RuntimeCall;
+}
+
+impl<C> frame_system::offchain::CreateBare<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	fn create_bare(call: Self::RuntimeCall) -> Self::Extrinsic {
+		UncheckedExtrinsic::new_bare(call)
+	}
+}
+
 parameter_types! {
 	pub const ExistentialDeposit: u128 = NANOYAP;
 	pub const TransactionByteFee: u128 = NANOYAP;
@@ -313,6 +330,9 @@ impl pallet_balances::Config for Runtime {
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<0>;
 	type DoneSlashHandler = ();
+	type InitialFreeFunding = sp_core::ConstU128<0>;
+	type PostStatsProvider = ();
+	type LocalAuthority = ();
 }
 
 impl pallet_transaction_payment::Config for Runtime {

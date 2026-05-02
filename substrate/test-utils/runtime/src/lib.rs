@@ -405,6 +405,23 @@ pub mod currency {
 	pub const DOLLARS: Balance = 100 * CENTS;
 }
 
+impl<C> frame_system::offchain::CreateTransactionBase<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	type Extrinsic = Extrinsic;
+	type RuntimeCall = RuntimeCall;
+}
+
+impl<C> frame_system::offchain::CreateBare<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	fn create_bare(call: Self::RuntimeCall) -> Self::Extrinsic {
+		Extrinsic::new_bare(call)
+	}
+}
+
 parameter_types! {
 	pub const ExistentialDeposit: Balance = 1 * currency::DOLLARS;
 	// For weight estimation, we assume that the most locks on an individual account will be 50.
@@ -428,6 +445,9 @@ impl pallet_balances::Config for Runtime {
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type DoneSlashHandler = ();
+	type InitialFreeFunding = sp_core::ConstU64<0>;
+	type PostStatsProvider = ();
+	type LocalAuthority = ();
 }
 
 impl pallet_utility::Config for Runtime {

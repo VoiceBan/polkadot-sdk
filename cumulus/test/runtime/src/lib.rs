@@ -348,6 +348,9 @@ impl pallet_balances::Config for Runtime {
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<0>;
 	type DoneSlashHandler = ();
+	type InitialFreeFunding = ConstU128<0>;
+	type PostStatsProvider = ();
+	type LocalAuthority = ();
 }
 
 impl pallet_transaction_payment::Config for Runtime {

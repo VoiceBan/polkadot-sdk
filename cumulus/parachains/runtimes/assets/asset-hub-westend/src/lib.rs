@@ -265,6 +265,9 @@ impl pallet_balances::Config for Runtime {
 	type FreezeIdentifier = RuntimeFreezeReason;
 	type MaxFreezes = frame_support::traits::VariantCountOf<RuntimeFreezeReason>;
 	type DoneSlashHandler = ();
+	type InitialFreeFunding = ConstU128<0>;
+	type PostStatsProvider = ();
+	type LocalAuthority = ();
 }
 
 parameter_types! {

@@ -435,6 +435,23 @@ impl frame_system::Config for Runtime {
 	type AccountData = pallet_balances::AccountData<Balance>;
 }
 
+impl<C> frame_system::offchain::CreateTransactionBase<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	type Extrinsic = sp_runtime::testing::TestXt<RuntimeCall, ()>;
+	type RuntimeCall = RuntimeCall;
+}
+
+impl<C> frame_system::offchain::CreateBare<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	fn create_bare(call: Self::RuntimeCall) -> Self::Extrinsic {
+		sp_runtime::testing::TestXt::new_bare(call)
+	}
+}
+
 parameter_types! {
 	pub static ExistentialDeposit: Balance = 5;
 }
@@ -447,6 +464,7 @@ impl pallet_balances::Config for Runtime {
 	type FreezeIdentifier = RuntimeFreezeReason;
 	type MaxFreezes = VariantCountOf<RuntimeFreezeReason>;
 	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type InitialFreeFunding = sp_core::ConstU128<0>;
 }
 
 pub struct BalanceToU256;

@@ -391,6 +391,7 @@ parameter_types! {
 	pub const ExistentialDeposit: Balance = EXISTENTIAL_DEPOSIT;
 	pub const MaxLocks: u32 = 50;
 	pub const MaxReserves: u32 = 50;
+	pub const InitialFreeFunding: Balance = 0;
 }
 
 impl pallet_balances::Config for Runtime {
@@ -408,6 +409,9 @@ impl pallet_balances::Config for Runtime {
 	type FreezeIdentifier = RuntimeFreezeReason;
 	type MaxFreezes = VariantCountOf<RuntimeFreezeReason>;
 	type DoneSlashHandler = ();
+	type InitialFreeFunding = InitialFreeFunding;
+	type PostStatsProvider = ();
+	type LocalAuthority = ();
 }
 
 parameter_types! {

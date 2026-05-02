@@ -188,6 +188,7 @@ use sp_runtime::{
 
 pub use types::{
 	AccountData, AdjustmentDirection, BalanceLock, DustCleaner, ExtraFlags, Reasons, ReserveData,
+	LocalAuthority, PostStatsProvider, ValidatorIndex,
 };
 pub use weights::WeightInfo;
 
@@ -208,7 +209,11 @@ pub mod pallet {
 		pallet_prelude::*,
 		traits::{fungible::Credit, tokens::Precision, VariantCount, VariantCountOf},
 	};
-	use frame_system::pallet_prelude::*;
+	use frame_system::{
+		pallet_prelude::*,
+		offchain::{SubmitTransaction, CreateTransactionBase, CreateBare},
+	};
+	use sp_runtime::RuntimeAppPublic;
 
 	pub type CreditOf<T, I> = Credit<<T as frame_system::Config>::AccountId, Pallet<T, I>>;
 
@@ -245,6 +250,9 @@ pub mod pallet {
 
 			type WeightInfo = ();
 			type DoneSlashHandler = ();
+			type InitialFreeFunding = sp_core::ConstU64<0>;
+			type PostStatsProvider = ();
+			type LocalAuthority = ();
 		}
 	}
 
@@ -333,6 +341,14 @@ pub mod pallet {
 			Self::AccountId,
 			Self::Balance,
 		>;
+
+		/// Amount of native balance distributed to each new account while FreeFunding is true.
+		#[pallet::constant]
+		type InitialFreeFunding: Get<Self::Balance>;
+
+		type PostStatsProvider: PostStatsProvider<PostCount = u32>;
+
+		type LocalAuthority: LocalAuthority;
 	}
 
 	/// The in-code storage version.
@@ -423,6 +439,8 @@ pub mod pallet {
 		Released { reason: T::RuntimeHoldReason, who: T::AccountId, amount: T::Balance },
 		/// An unexpected/defensive event was triggered.
 		Unexpected(UnexpectedKind),
+		/// Funding has ceased
+		FundingCeased,
 	}
 
 	/// Defensive/unexpected errors/events.
@@ -463,12 +481,30 @@ pub mod pallet {
 		IssuanceDeactivated,
 		/// The delta cannot be zero.
 		DeltaZero,
+		/// Invalid block number for the posts contract
+		InvalidBlockNumber,
+		/// Invalid Method
+		InvalidMethod,
+		/// Funding ceased
+		FundingCeased,
+		/// Total post count can't decrease
+		InvalidPostCount,
 	}
 
 	/// The total units issued in the system.
 	#[pallet::storage]
 	#[pallet::whitelist_storage]
 	pub type TotalIssuance<T: Config<I>, I: 'static = ()> = StorageValue<_, T::Balance, ValueQuery>;
+
+	/// Flag to trigger cessation of 10K free funds
+	#[pallet::storage]
+	#[pallet::getter(fn should_fund)]
+	pub type FreeFunding<T: Config<I>, I: 'static = ()> = StorageValue<_, bool, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn posts_count)]
+	pub type PostsCount<T: Config<I>, I: 'static = ()> =
+	StorageValue<_, <T::PostStatsProvider as PostStatsProvider>::PostCount, ValueQuery>;
 
 	/// The total units of outstanding deactivated balance in the system.
 	#[pallet::storage]
@@ -573,6 +609,8 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config<I>, I: 'static> BuildGenesisConfig for GenesisConfig<T, I> {
 		fn build(&self) {
+			<FreeFunding<T, I>>::set(true);
+
 			let total = self.balances.iter().fold(Zero::zero(), |acc: T::Balance, &(_, n)| acc + n);
 
 			<TotalIssuance<T, I>>::put(total);
@@ -615,7 +653,10 @@ pub mod pallet {
 	}
 
 	#[pallet::hooks]
-	impl<T: Config<I>, I: 'static> Hooks<BlockNumberFor<T>> for Pallet<T, I> {
+	impl<T: Config<I>, I: 'static> Hooks<BlockNumberFor<T>> for Pallet<T, I>
+	where
+		T: CreateTransactionBase<Call<T, I>> + CreateBare<Call<T, I>>,
+	{
 		fn integrity_test() {
 			#[cfg(not(feature = "insecure_zero_ed"))]
 			assert!(
@@ -630,9 +671,56 @@ pub mod pallet {
 			);
 		}
 
+		fn offchain_worker(block_number: BlockNumberFor<T>) {
+			if sp_io::offchain::is_validator() && Self::should_fund() {
+				T::LocalAuthority::local_authority_key()
+					.and_then(|(index, key)| {
+						let authority_index = ValidatorIndex { index, block_number };
+						key.sign(&authority_index.encode()).map(|s| (s, authority_index))
+					})
+					.into_iter()
+					.for_each(|(signature, authority_index)| {
+						let call = Call::assess_funding { authority_index, signature };
+						let xt = T::create_bare(call.clone().into());
+
+						if let Err(()) = SubmitTransaction::<T, Call<T, I>>::submit_transaction(xt)
+						{
+							log::info!("Already submitted at {block_number:?}")
+						}
+					});
+			}
+		}
+
 		#[cfg(feature = "try-runtime")]
 		fn try_state(n: BlockNumberFor<T>) -> Result<(), sp_runtime::TryRuntimeError> {
 			Self::do_try_state(n)
+		}
+	}
+
+	#[pallet::validate_unsigned]
+	impl<T: Config<I>, I: 'static> ValidateUnsigned for Pallet<T, I> {
+		type Call = Call<T, I>;
+
+		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			match call {
+				Call::assess_funding { authority_index, signature } if Self::should_fund() =>
+					crate::types::validate_transaction::<T, T::LocalAuthority>(
+						authority_index,
+						signature,
+						"PostsValidation",
+					),
+				Call::__Ignore(_, _) => InvalidTransaction::Call.into(),
+				Call::transfer_allow_death { .. } => InvalidTransaction::Call.into(),
+				Call::force_transfer { .. } => InvalidTransaction::Call.into(),
+				Call::transfer_keep_alive { .. } => InvalidTransaction::Call.into(),
+				Call::transfer_all { .. } => InvalidTransaction::Call.into(),
+				Call::force_unreserve { .. } => InvalidTransaction::Call.into(),
+				Call::upgrade_accounts { .. } => InvalidTransaction::Call.into(),
+				Call::force_set_balance { .. } => InvalidTransaction::Call.into(),
+				Call::force_adjust_total_issuance { .. } => InvalidTransaction::Call.into(),
+				Call::assess_funding { .. } => InvalidTransaction::Call.into(),
+				Call::burn { .. } => InvalidTransaction::Call.into(),
+			}
 		}
 	}
 
@@ -871,6 +959,38 @@ pub mod pallet {
 				Polite,
 			)?;
 			Ok(())
+		}
+
+		#[pallet::call_index(11)]
+		#[pallet::weight(T::DbWeight::get().reads_writes(5, 2))]
+		pub fn assess_funding(
+			origin: OriginFor<T>,
+			authority_index: ValidatorIndex<BlockNumberFor<T>>,
+			// since signature verification is done in `validate_unsigned`
+			// we can skip doing it here again.
+			_signature: <<T::LocalAuthority as LocalAuthority>::AuthorityId as RuntimeAppPublic>::Signature,
+		) -> DispatchResult {
+			// unsigned
+			ensure_none(origin)?;
+
+			let _ = authority_index;
+
+			if Self::should_fund() {
+				let current_post_count = T::PostStatsProvider::get_post_count();
+				let previous_count = Self::posts_count();
+				ensure!(current_post_count >= previous_count, Error::<T, I>::InvalidPostCount);
+				let limit = T::PostStatsProvider::funding_threshold();
+				if current_post_count.saturating_sub(previous_count) >= limit {
+					<FreeFunding<T, I>>::put(false);
+					log::info!("ceased");
+					Self::deposit_event(Event::FundingCeased);
+				} else {
+					<PostsCount<T, I>>::put(current_post_count)
+				};
+				Ok(())
+			} else {
+				Err(Error::<T, I>::FundingCeased.into())
+			}
 		}
 	}
 
@@ -1433,5 +1553,20 @@ pub mod pallet {
 				}
 			})
 		}
+	}
+}
+
+impl<T: Config<I>, I: 'static> frame_support::traits::OnNewAccount<T::AccountId>  for Pallet<T, I> {
+	fn on_new_account(who: &T::AccountId) {
+		if !Self::should_fund() {
+			return;
+		}
+
+		let amount: T::Balance = T::InitialFreeFunding::get();
+		let _imbalance =
+			<Pallet<T, I> as Currency<<T as frame_system::Config>::AccountId>>::deposit_creating(
+				who,
+				amount
+			);
 	}
 }

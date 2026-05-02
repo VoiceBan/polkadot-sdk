@@ -19,10 +19,16 @@
 
 use crate::{Config, CreditOf, Event, Pallet};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use core::ops::BitOr;
+use core::{
+	fmt::{Debug, Display},
+	ops::{BitOr, Sub},
+};
 use frame_support::traits::{Imbalance, LockIdentifier, OnUnbalanced, WithdrawReasons};
+use frame_system::pallet_prelude::BlockNumberFor;
 use scale_info::TypeInfo;
-use sp_runtime::Saturating;
+use sp_runtime::traits::{AtLeast32BitUnsigned, MaybeSerializeDeserialize, Member};
+use sp_runtime::transaction_validity::{InvalidTransaction, TransactionValidity, ValidTransaction};
+use sp_runtime::{FixedPointOperand, RuntimeAppPublic, Saturating};
 
 /// Simplified reasons for withdrawing balance.
 #[derive(
@@ -181,4 +187,108 @@ pub enum AdjustmentDirection {
 	Increase,
 	/// Decrease the amount.
 	Decrease,
+}
+
+/// Wrapper around index of the validator node
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	Copy,
+	PartialEq,
+	Eq,
+	Debug,
+	MaxEncodedLen,
+	TypeInfo,
+)]
+pub struct ValidatorIndex<BlockNumber>
+where
+	BlockNumber: PartialEq + Eq + Decode + Encode + Copy,
+{
+	/// An index of the authority on the list of validators.
+	pub index: u32,
+	/// Block number at which the call is made.
+	pub block_number: BlockNumber,
+}
+
+pub trait PostStatsProvider {
+	type PostCount: frame_support::Parameter
+		+ Member
+		+ AtLeast32BitUnsigned
+		+ codec::Codec
+		+ Default
+		+ Copy
+		+ Sub
+		+ MaybeSerializeDeserialize
+		+ Debug
+		+ Display
+		+ MaxEncodedLen
+		+ TypeInfo
+		+ FixedPointOperand;
+
+	fn get_post_count() -> Self::PostCount {
+		Default::default()
+	}
+
+	fn funding_threshold() -> Self::PostCount {
+		Default::default()
+	}
+}
+
+pub trait LocalAuthority {
+	type AuthorityId: codec::Codec + RuntimeAppPublic + Display;
+	/// Local validator key used to call the offchain method
+	fn local_authority_key() -> Option<(u32, Self::AuthorityId)> {
+		Default::default()
+	}
+
+	/// List of all validator keys
+	fn keys() -> sp_std::vec::Vec<Self::AuthorityId> {
+		Default::default()
+	}
+
+	fn unsigned_priority() -> u64 {
+		Default::default()
+	}
+}
+
+pub fn validate_transaction<T: frame_system::Config, LA: LocalAuthority>(
+	validator_index: &ValidatorIndex<BlockNumberFor<T>>,
+	signature: &<<LA as LocalAuthority>::AuthorityId as sp_runtime::RuntimeAppPublic>::Signature,
+	tag_prefix: &'static str,
+) -> TransactionValidity {
+	let keys = LA::keys();
+	let index: usize =
+		validator_index.index.try_into().map_err(|_| InvalidTransaction::BadSigner)?;
+
+	keys.get(index)
+		.map(|authority_id| {
+			// check signature
+			let signature_valid = validator_index.using_encoded(|encoded_authority| {
+				authority_id.verify(&encoded_authority, signature)
+			});
+			if signature_valid {
+				ValidTransaction::with_tag_prefix(tag_prefix)
+					.priority(LA::unsigned_priority())
+					.longevity(1)
+					.propagate(true)
+					.build()
+			} else {
+				InvalidTransaction::BadProof.into()
+			}
+		})
+		.unwrap_or(InvalidTransaction::BadSigner.into())
+}
+mod test_authority_id {
+	use sp_runtime::app_crypto::{app_crypto, key_types, sr25519};
+	app_crypto!(sr25519, key_types::DUMMY);
+}
+
+impl LocalAuthority for () {
+	type AuthorityId = test_authority_id::Public;
+}
+
+impl PostStatsProvider for () {
+	type PostCount = u32;
 }

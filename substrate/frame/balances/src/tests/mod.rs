@@ -92,6 +92,23 @@ frame_support::construct_runtime!(
 	}
 );
 
+impl<C> frame_system::offchain::CreateTransactionBase<C> for Test
+where
+	RuntimeCall: From<C>,
+{
+	type Extrinsic = sp_runtime::testing::TestXt<RuntimeCall, ()>;
+	type RuntimeCall = RuntimeCall;
+}
+
+impl<C> frame_system::offchain::CreateBare<C> for Test
+where
+	RuntimeCall: From<C>,
+{
+	fn create_bare(call: <Test as frame_system::Config>::RuntimeCall) -> Self::Extrinsic {
+		sp_runtime::testing::TestXt::new_bare(call)
+	}
+}
+
 parameter_types! {
 	pub BlockWeights: frame_system::limits::BlockWeights =
 		frame_system::limits::BlockWeights::simple_max(
@@ -130,6 +147,9 @@ impl Config for Test {
 	type RuntimeFreezeReason = TestId;
 	type FreezeIdentifier = TestId;
 	type MaxFreezes = VariantCountOf<TestId>;
+	type InitialFreeFunding = sp_core::ConstU64<10_000_000_000_000_000_000>;
+	type PostStatsProvider = ();
+	type LocalAuthority = ();
 }
 
 #[derive(Clone)]

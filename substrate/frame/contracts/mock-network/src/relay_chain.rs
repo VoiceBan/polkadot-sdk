@@ -21,7 +21,7 @@ use frame_support::{
 	traits::{Contains, Disabled, Everything, Nothing},
 	weights::Weight,
 };
-
+use frame_support::traits::ConstU64;
 use frame_system::EnsureRoot;
 use sp_core::{ConstU32, H256};
 use sp_runtime::traits::IdentityLookup;
@@ -90,6 +90,9 @@ impl pallet_balances::Config for Runtime {
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type DoneSlashHandler = ();
+	type InitialFreeFunding = ConstU128<0>;
+	type PostStatsProvider = ();
+	type LocalAuthority = ();
 }
 
 impl shared::Config for Runtime {
