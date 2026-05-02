@@ -43,6 +43,7 @@ linked_hash_set = { workspace = true }
 litep2p = { workspace = true }
 log = { workspace = true, default-features = true }
 mockall = { workspace = true }
+multihash-codetable = { workspace = true, features = ["blake2b"] }
 parking_lot = { workspace = true, default-features = true }
 partial_sort = { workspace = true }
 pin-project = { workspace = true }

@@ -198,7 +198,7 @@ impl<B: BlockT> BitswapRequestHandler<B> {
 			};
 
 			if cid.version() != cid::Version::V1 ||
-				cid.hash().code() != u64::from(cid::multihash::Code::Blake2b256) ||
+				cid.hash().code() != u64::from(multihash_codetable::Code::Blake2b256) ||
 				cid.hash().size() != 32
 			{
 				debug!(target: LOG_TARGET, "Ignoring unsupported CID {}: {}", peer, cid);
@@ -502,7 +502,7 @@ mod tests {
 							block: cid::Cid::new_v1(
 								0x70,
 								cid::multihash::Multihash::wrap(
-									u64::from(cid::multihash::Code::Blake2b256),
+									u64::from(multihash_codetable::Code::Blake2b256),
 									&sp_crypto_hashing::blake2_256(&ext.encode()[pattern_index..]),
 								)
 								.unwrap(),
