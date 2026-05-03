@@ -97,7 +97,7 @@ impl pallet_balances::Config for Runtime {
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type WeightInfo = ();
 	type DoneSlashHandler = ();
-	type InitialFreeFunding = ConstU128<0>;
+	type InitialFreeFunding = sp_core::ConstU128<0>;
 	type PostStatsProvider = ();
 	type LocalAuthority = ();
 }
@@ -340,6 +340,23 @@ impl pallet_timestamp::Config for Runtime {
 	type OnTimestampSet = ();
 	type MinimumPeriod = ConstU64<1>;
 	type WeightInfo = ();
+}
+
+impl<C> frame_system::offchain::CreateTransactionBase<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	type Extrinsic = sp_runtime::testing::TestXt<RuntimeCall, ()>;
+	type RuntimeCall = RuntimeCall;
+}
+
+impl<C> frame_system::offchain::CreateBare<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	fn create_bare(call: Self::RuntimeCall) -> Self::Extrinsic {
+		sp_runtime::testing::TestXt::new_bare(call)
+	}
 }
 
 construct_runtime!(

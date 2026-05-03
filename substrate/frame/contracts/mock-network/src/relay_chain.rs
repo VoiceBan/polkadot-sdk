@@ -90,7 +90,7 @@ impl pallet_balances::Config for Runtime {
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type DoneSlashHandler = ();
-	type InitialFreeFunding = ConstU128<0>;
+	type InitialFreeFunding = sp_core::ConstU128<0>;
 	type PostStatsProvider = ();
 	type LocalAuthority = ();
 }
