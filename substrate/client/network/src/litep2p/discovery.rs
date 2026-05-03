@@ -80,6 +80,8 @@ const MAX_EXTERNAL_ADDRESSES: u32 = 32;
 /// external.
 const MIN_ADDRESS_CONFIRMATIONS: usize = 3;
 
+pub const MULTIHASH_SIZE: usize = 64;
+
 /// Quorum threshold to interpret `PUT_VALUE` & `ADD_PROVIDER` as successful.
 ///
 /// As opposed to libp2p, litep2p does not finish the query as soon as the required number of
@@ -735,7 +737,9 @@ impl Stream for Discovery {
 			})) => {
 				let observed_address =
 					if let Some(Protocol::P2p(peer_id)) = observed_address.iter().last() {
-						if peer_id != *this.local_peer_id.as_ref() {
+						let multihash: litep2p::types::multihash::Multihash<MULTIHASH_SIZE> = peer_id.into();
+						let peer_id = PeerId::from_multihash(multihash).expect("valid multihash; qed");
+						if peer_id != this.local_peer_id {
 							log::warn!(
 								target: LOG_TARGET,
 								"Discovered external address for a peer that is not us: {observed_address}",

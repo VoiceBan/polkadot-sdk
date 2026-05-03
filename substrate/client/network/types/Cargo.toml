@@ -19,6 +19,7 @@ litep2p = { workspace = true }
 log = { workspace = true, default-features = true }
 multiaddr = { workspace = true }
 multihash = { workspace = true }
+multihash-codetable = { workspace = true, features = ["sha2"] }
 rand = { workspace = true, default-features = true }
 serde = { workspace = true }
 serde_with = { workspace = true }

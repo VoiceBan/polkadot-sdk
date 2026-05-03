@@ -890,15 +890,15 @@ kvdb-shared-tests = { version = "0.11.0" }
 landlock = { version = "0.3.0" }
 libc = { version = "0.2.155" }
 libfuzzer-sys = { version = "0.4" }
-libp2p = { version = "0.54.1" }
-libp2p-identity = { version = "0.2.9" }
-libp2p-kad = { version = "0.46.2", default-features = false }
+libp2p = { version = "0.56.0" }
+libp2p-identity = { version = "0.2.13" }
+libp2p-kad = { version = "0.48.0", default-features = false }
 libsecp256k1 = { version = "0.7.0", default-features = false }
 linked-hash-map = { version = "0.5.4" }
 linked_hash_set = { version = "0.1.4" }
 linregress = { version = "0.5.1" }
 lite-json = { version = "0.2.0", default-features = false }
-litep2p = { version = "0.13.3", features = ["rsa", "websocket"] }
+litep2p = { git = "https://github.com/paritytech/litep2p.git", branch = "master", features = ["rsa", "websocket"] }
 log = { version = "0.4.22", default-features = false }
 macro_magic = { version = "0.5.1" }
 maplit = { version = "1.0.2" }
@@ -915,8 +915,9 @@ mmr-gadget = { path = "substrate/client/merkle-mountain-range", default-features
 mmr-lib = { version = "0.8.1", package = "polkadot-ckb-merkle-mountain-range", default-features = false }
 mmr-rpc = { path = "substrate/client/merkle-mountain-range/rpc", default-features = false }
 mockall = { version = "0.13.1" }
-multiaddr = { version = "0.18.1" }
+multiaddr = { version = "0.18.2" }
 multihash = { version = "0.19.1", default-features = false }
+multihash-codetable = { version = "0.2.2", default-features = false }
 multistream-select = { version = "0.13.0" }
 names = { version = "0.14.0", default-features = false }
 nix = { version = "0.29.0" }
@@ -1454,9 +1455,9 @@ xcm-runtime-apis = { path = "polkadot/xcm/xcm-runtime-apis", default-features = 
 xcm-simulator = { path = "polkadot/xcm/xcm-simulator", default-features = false }
 yet-another-parachain-runtime = { path = "cumulus/parachains/runtimes/testing/yet-another-parachain" }
 zeroize = { version = "1.7.0", default-features = false }
-zombienet-configuration = { version = "0.4.7" }
-zombienet-orchestrator = { version = "0.4.7" }
-zombienet-sdk = { version = "0.4.7" }
+zombienet-configuration = { git = "https://github.com/VoiceBan/zombienet-sdk", branch = "vb-stable2603" }
+zombienet-orchestrator = { git = "https://github.com/VoiceBan/zombienet-sdk", branch = "vb-stable2603" }
+zombienet-sdk = { git = "https://github.com/VoiceBan/zombienet-sdk", branch = "vb-stable2603" }
 zstd = { version = "0.12.4", default-features = false }
 
 [profile.release]

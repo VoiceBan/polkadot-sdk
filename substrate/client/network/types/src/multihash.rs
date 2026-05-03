@@ -20,9 +20,17 @@
 //! multihash used by litep2p, but it can be switched to other implementation if needed.
 
 use litep2p::types::multihash::{
-	Code as LiteP2pCode, Error as LiteP2pError, Multihash as LiteP2pMultihash, MultihashDigest as _,
+	Error as LiteP2pError, Multihash as LiteP2pMultihashGeneric,
 };
+use multihash_codetable::MultihashDigest;
 use std::fmt::{self, Debug};
+
+const MULTIHASH_SIZE: usize = 64;
+
+const IDENTITY_CODE: u64 = 0x00;
+const SHA2_256_CODE: u64 = 0x12;
+
+type LiteP2pMultihash = LiteP2pMultihashGeneric<MULTIHASH_SIZE>;
 
 /// Default [`Multihash`] implementations. Only hashes used by substrate are defined.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -36,7 +44,11 @@ pub enum Code {
 impl Code {
 	/// Calculate digest using this [`Code`]'s hashing algorithm.
 	pub fn digest(&self, input: &[u8]) -> Multihash {
-		LiteP2pCode::from(*self).digest(input).into()
+		match self {
+			Code::Identity => Multihash::wrap(IDENTITY_CODE, input)
+				.expect("identity digest must fit into the configured multihash size; qed"),
+			Code::Sha2_256 => multihash_codetable::Code::Sha2_256.digest(input).into()
+		}
 	}
 }
 
@@ -57,49 +69,49 @@ pub enum Error {
 
 impl From<LiteP2pError> for Error {
 	fn from(error: LiteP2pError) -> Self {
-		match error {
-			LiteP2pError::InvalidSize(s) => Self::InvalidSize(s),
-			LiteP2pError::UnsupportedCode(c) => Self::UnsupportedCode(c),
-			e => Self::Other(Box::new(e)),
-		}
+		Self::Other(Box::new(error))
 	}
 }
 
-impl From<Code> for LiteP2pCode {
-	fn from(code: Code) -> Self {
-		match code {
-			Code::Identity => LiteP2pCode::Identity,
-			Code::Sha2_256 => LiteP2pCode::Sha2_256,
-		}
-	}
-}
-
-impl TryFrom<LiteP2pCode> for Code {
-	type Error = Error;
-
-	fn try_from(code: LiteP2pCode) -> Result<Self, Self::Error> {
-		match code {
-			LiteP2pCode::Identity => Ok(Code::Identity),
-			LiteP2pCode::Sha2_256 => Ok(Code::Sha2_256),
-			_ => Err(Error::UnsupportedCode(code.into())),
-		}
-	}
-}
+// impl From<Code> for LiteP2pCode {
+// 	fn from(code: Code) -> Self {
+// 		match code {
+// 			Code::Identity => LiteP2pCode::Identity,
+// 			Code::Sha2_256 => LiteP2pCode::Sha2_256,
+// 		}
+// 	}
+// }
+//
+// impl TryFrom<LiteP2pCode> for Code {
+// 	type Error = Error;
+//
+// 	fn try_from(code: LiteP2pCode) -> Result<Self, Self::Error> {
+// 		match code {
+// 			LiteP2pCode::Identity => Ok(Code::Identity),
+// 			LiteP2pCode::Sha2_256 => Ok(Code::Sha2_256),
+// 			_ => Err(Error::UnsupportedCode(code.into())),
+// 		}
+// 	}
+// }
 
 impl TryFrom<u64> for Code {
 	type Error = Error;
 
 	fn try_from(code: u64) -> Result<Self, Self::Error> {
-		match LiteP2pCode::try_from(code) {
-			Ok(code) => code.try_into(),
-			Err(e) => Err(e.into()),
+		match code {
+			IDENTITY_CODE => Ok(Code::Identity),
+			SHA2_256_CODE => Ok(Code::Sha2_256),
+			_ => Err(Error::UnsupportedCode(code)),
 		}
 	}
 }
 
 impl From<Code> for u64 {
 	fn from(code: Code) -> Self {
-		LiteP2pCode::from(code).into()
+		match code {
+			Code::Identity => IDENTITY_CODE,
+			Code::Sha2_256 => SHA2_256_CODE,
+		}
 	}
 }
 
@@ -121,6 +133,10 @@ impl Multihash {
 
 	/// Wraps the digest in a multihash.
 	pub fn wrap(code: u64, input_digest: &[u8]) -> Result<Self, Error> {
+		if input_digest.len() > MULTIHASH_SIZE {
+			return Err(Error::InvalidSize(input_digest.len() as u64))
+		}
+
 		LiteP2pMultihash::wrap(code, input_digest).map(Into::into).map_err(Into::into)
 	}
 
@@ -156,21 +172,6 @@ impl From<Multihash> for LiteP2pMultihash {
 	}
 }
 
-impl From<multihash::Multihash<64>> for Multihash {
-	fn from(generic: multihash::Multihash<64>) -> Self {
-		LiteP2pMultihash::wrap(generic.code(), generic.digest())
-			.expect("both have size 64; qed")
-			.into()
-	}
-}
-
-impl From<Multihash> for multihash::Multihash<64> {
-	fn from(multihash: Multihash) -> Self {
-		multihash::Multihash::<64>::wrap(multihash.code(), multihash.digest())
-			.expect("both have size 64; qed")
-	}
-}
-
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -186,5 +187,32 @@ mod tests {
 	fn code_into_u64() {
 		assert_eq!(u64::from(Code::Identity), 0x00);
 		assert_eq!(u64::from(Code::Sha2_256), 0x12);
+	}
+
+	#[test]
+	fn identity_digest() {
+		let input = b"substrate";
+		let hash = Code::Identity.digest(input);
+
+		assert_eq!(hash.code(), u64::from(Code::Identity));
+		assert_eq!(hash.digest(), input);
+	}
+
+	#[test]
+	fn sha2_256_digest() {
+		let hash = Code::Sha2_256.digest(b"substrate");
+
+		assert_eq!(hash.code(), u64::from(Code::Sha2_256));
+		assert_eq!(hash.digest().len(), 32);
+	}
+
+	#[test]
+	fn wrap_rejects_too_large_digest() {
+		let digest = [0u8; MULTIHASH_SIZE + 1];
+
+		assert!(matches!(
+			Multihash::wrap(u64::from(Code::Identity), &digest),
+			Err(Error::InvalidSize(size)) if size == (MULTIHASH_SIZE + 1) as u64
+		));
 	}
 }

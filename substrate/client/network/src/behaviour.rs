@@ -174,6 +174,12 @@ pub enum BehaviourOut {
 	None,
 }
 
+impl From<std::convert::Infallible> for BehaviourOut {
+	fn from(_: std::convert::Infallible) -> Self {
+			BehaviourOut::None
+	}
+}
+
 impl<B: BlockT> Behaviour<B> {
 	/// Builds a new `Behaviour`.
 	pub fn new(

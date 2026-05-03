@@ -113,18 +113,16 @@ pub mod traits;
 /// Logging target for the file.
 const LOG_TARGET: &str = "sub-libp2p";
 
-struct Libp2pBandwidthSink {
-	#[allow(deprecated)]
-	sink: Arc<transport::BandwidthSinks>,
-}
+#[derive(Debug, Default)]
+struct NoopBandwidthSink;
 
-impl BandwidthSink for Libp2pBandwidthSink {
+impl BandwidthSink for NoopBandwidthSink {
 	fn total_inbound(&self) -> u64 {
-		self.sink.total_inbound()
+		0
 	}
 
 	fn total_outbound(&self) -> u64 {
-		self.sink.total_outbound()
+		0
 	}
 }
 
@@ -141,6 +139,10 @@ pub struct NetworkService<B: BlockT + 'static, H: ExHashT> {
 	/// The `KeyPair` that defines the `PeerId` of the local node.
 	local_identity: Keypair,
 	/// Bandwidth logging system. Can be queried to know the average bandwidth consumed.
+	///
+	/// With libp2p >= 0.56, the old transport-level `BandwidthSinks` API was removed.
+	/// This currently uses a no-op sink. Real bandwidth metrics should be wired through
+	/// `libp2p::metrics` at the swarm/metrics layer.
 	bandwidth: Arc<dyn BandwidthSink>,
 	/// Channel that sends messages to the actual worker.
 	to_worker: TracingUnboundedSender<ServiceToWorkerMsg>,
@@ -338,7 +340,7 @@ where
 		);
 		info!(target: LOG_TARGET, "Running libp2p network backend");
 
-		let (transport, bandwidth) = {
+		let transport = {
 			let config_mem = match network_config.transport {
 				TransportConfig::MemoryOnly => true,
 				TransportConfig::Normal { .. } => false,
@@ -346,6 +348,7 @@ where
 
 			transport::build_transport(local_identity.clone().into(), config_mem)
 		};
+		let bandwidth: Arc<dyn BandwidthSink> = Arc::new(NoopBandwidthSink::default());
 
 		let (to_notifications, from_protocol_controllers) =
 			tracing_unbounded("mpsc_protocol_controllers_to_notifications", 10_000);
@@ -467,7 +470,7 @@ where
 		)?;
 
 		// Build the swarm.
-		let (mut swarm, bandwidth): (Swarm<Behaviour<B>>, _) = {
+		let mut swarm: Swarm<Behaviour<B>> = {
 			let user_agent =
 				format!("{} ({})", network_config.client_version, network_config.node_name);
 
@@ -535,27 +538,23 @@ where
 				}
 			};
 
-			let swarm = {
-				struct SpawnImpl<F>(F);
-				impl<F: Fn(Pin<Box<dyn Future<Output = ()> + Send>>)> Executor for SpawnImpl<F> {
-					fn exec(&self, f: Pin<Box<dyn Future<Output = ()> + Send>>) {
-						(self.0)(f)
-					}
+			struct SpawnImpl<F>(F);
+			impl<F: Fn(Pin<Box<dyn Future<Output = ()> + Send>>)> Executor for SpawnImpl<F> {
+				fn exec(&self, f: Pin<Box<dyn Future<Output = ()> + Send>>) {
+					(self.0)(f)
 				}
+			}
 
-				let config = SwarmConfig::with_executor(SpawnImpl(params.executor))
-					.with_substream_upgrade_protocol_override(upgrade::Version::V1)
-					.with_notify_handler_buffer_size(NonZeroUsize::new(32).expect("32 != 0; qed"))
-					// NOTE: 24 is somewhat arbitrary and should be tuned in the future if
-					// necessary. See <https://github.com/paritytech/substrate/pull/6080>
-					.with_per_connection_event_buffer_size(24)
-					.with_max_negotiating_inbound_streams(2048)
-					.with_idle_connection_timeout(network_config.idle_connection_timeout);
+			let config = SwarmConfig::with_executor(SpawnImpl(params.executor))
+				.with_substream_upgrade_protocol_override(upgrade::Version::V1)
+				.with_notify_handler_buffer_size(NonZeroUsize::new(32).expect("32 != 0; qed"))
+				// NOTE: 24 is somewhat arbitrary and should be tuned in the future if
+				// necessary. See <https://github.com/paritytech/substrate/pull/6080>
+				.with_per_connection_event_buffer_size(24)
+				.with_max_negotiating_inbound_streams(2048)
+				.with_idle_connection_timeout(network_config.idle_connection_timeout);
 
-				Swarm::new(transport, behaviour, local_peer_id, config)
-			};
-
-			(swarm, Arc::new(Libp2pBandwidthSink { sink: bandwidth }))
+			Swarm::new(transport, behaviour, local_peer_id, config)
 		};
 
 		// Initialize the metrics.
@@ -1790,27 +1789,20 @@ where
 					if let Some(addresses) =
 						not_reported.then(|| self.boot_node_ids.get(&peer_id)).flatten()
 					{
-						if let DialError::WrongPeerId { obtained, endpoint } = &error {
-							if let ConnectedPoint::Dialer {
-								address,
-								role_override: _,
-								port_use: _,
-							} = endpoint
-							{
-								let address_without_peer_id = parse_addr(address.clone().into())
-									.map_or_else(|_| address.clone(), |r| r.1.into());
+						if let DialError::WrongPeerId { obtained, address } = &error {
+							let address_without_peer_id = parse_addr(address.clone().into())
+								.map_or_else(|_| address.clone(), |r| r.1.into());
 
-								// Only report for address of boot node that was added at startup of
-								// the node and not for any address that the node learned of the
-								// boot node.
-								if addresses.iter().any(|a| address_without_peer_id == *a) {
-									warn!(
+							// Only report for address of boot node that was added at startup of
+							// the node and not for any address that the node learned of the
+							// boot node.
+							if addresses.iter().any(|a| address_without_peer_id == *a) {
+								warn!(
 										"💔 The bootnode you want to connect to at `{address}` provided a \
 										 different peer ID `{obtained}` than the one you expect `{peer_id}`.",
 									);
 
-									self.reported_invalid_boot_nodes.insert(peer_id);
-								}
+								self.reported_invalid_boot_nodes.insert(peer_id);
 							}
 						}
 					}
@@ -1828,9 +1820,9 @@ where
 						DialError::LocalPeerId { .. } => Some("local-peer-id"),
 						DialError::WrongPeerId { .. } => Some("invalid-peer-id"),
 						DialError::Transport(_) => Some("transport-error"),
-						DialError::NoAddresses |
-						DialError::DialPeerConditionFalse(_) |
-						DialError::Aborted => None, // ignore them
+						DialError::NoAddresses
+						| DialError::DialPeerConditionFalse(_)
+						| DialError::Aborted => None, // ignore them
 					};
 					if let Some(reason) = reason {
 						metrics.pending_connections_errors_total.with_label_values(&[reason]).inc();
@@ -1851,6 +1843,7 @@ where
 				local_addr,
 				send_back_addr,
 				error,
+				peer_id: _,
 			} => {
 				debug!(
 					target: LOG_TARGET,
