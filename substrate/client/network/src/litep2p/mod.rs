@@ -132,6 +132,7 @@ impl Executor for Litep2pExecutor {
 
 /// Logging target for the file.
 const LOG_TARGET: &str = "sub-libp2p";
+pub const MULTIHASH_SIZE: usize = 64;
 
 /// Peer context.
 struct ConnectionContext {
@@ -213,11 +214,16 @@ impl Litep2pNetworkBackend {
 					Protocol::Ip4(_),
 				) => match address.iter().find(|protocol| std::matches!(protocol, Protocol::P2p(_)))
 				{
-					Some(Protocol::P2p(multihash)) => PeerId::from_multihash(multihash.into())
-						.map_or(None, |peer| Some((peer, Some(address)))),
+					Some(Protocol::P2p(multihash)) => {
+						let multihash: litep2p::types::multihash::Multihash<MULTIHASH_SIZE> = multihash.into();
+
+						PeerId::from_multihash(multihash.into())
+							.map_or(None, |peer| Some((peer, Some(address))))
+					},
 					_ => None,
 				},
 				Some(Protocol::P2p(multihash)) => {
+					let multihash: litep2p::types::multihash::Multihash<MULTIHASH_SIZE> = multihash.into();
 					PeerId::from_multihash(multihash.into()).map_or(None, |peer| Some((peer, None)))
 				},
 				_ => None,
@@ -1125,7 +1131,7 @@ impl<B: BlockT + 'static, H: ExHashT> NetworkBackend<B, H> for Litep2pNetworkBac
 
 						// Litep2p requires the peer ID to be present in the address.
 						let address = if !std::matches!(address.iter().last(), Some(Protocol::P2p(_))) {
-							address.with(Protocol::P2p(*local_peer_id.as_ref()))
+							address.with(Protocol::P2p(local_peer_id.clone().into()))
 						} else {
 							address
 						};
