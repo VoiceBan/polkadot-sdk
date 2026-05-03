@@ -25,26 +25,18 @@ use libp2p::{
 		transport::{Boxed, OptionalTransport},
 		upgrade,
 	},
-	dns, identity, noise, tcp, websocket, PeerId, Transport, TransportExt,
+	dns, identity, noise, tcp, websocket, PeerId, Transport,
 };
-use std::{sync::Arc, time::Duration};
-
-// TODO: Create a wrapper similar to upstream `BandwidthTransport` that tracks sent/received bytes
-#[allow(deprecated)]
-pub use libp2p::bandwidth::BandwidthSinks;
+use std::time::Duration;
 
 /// Builds the transport that serves as a common ground for all connections.
 ///
 /// If `memory_only` is true, then only communication within the same process are allowed. Only
 /// addresses with the format `/memory/...` are allowed.
-///
-/// Returns a `BandwidthSinks` object that allows querying the average bandwidth produced by all
-/// the connections spawned with this transport.
-#[allow(deprecated)]
 pub fn build_transport(
 	keypair: identity::Keypair,
 	memory_only: bool,
-) -> (Boxed<(PeerId, StreamMuxerBox)>, Arc<BandwidthSinks>) {
+) -> Boxed<(PeerId, StreamMuxerBox)> {
 	// Build the base layer of the transport.
 	let transport = if !memory_only {
 		// Main transport: DNS(TCP)
@@ -76,12 +68,10 @@ pub fn build_transport(
 	let authentication_config = noise::Config::new(&keypair).expect("Can create noise config. qed");
 	let multiplexing_config = libp2p::yamux::Config::default();
 
-	let transport = transport
+	transport
 		.upgrade(upgrade::Version::V1Lazy)
 		.authenticate(authentication_config)
 		.multiplex(multiplexing_config)
 		.timeout(Duration::from_secs(20))
-		.boxed();
-
-	transport.with_bandwidth_logging()
+		.boxed()
 }
